@@ -13,36 +13,16 @@ def inefficient_pipeline(n):
     for iteration in range(10):
 
         # unnecessary deep duplication
-        duplicated = []
-        for row in data:
-            new_row = []
-            for value in row:
-                new_row.append(value)
-            duplicated.append(new_row)
+        duplicated = [row[:] for row in data]
 
         # convert everything to strings (wasteful)
-        string_version = []
-        for row in duplicated:
-            srow = []
-            for value in row:
-                srow.append(str(value))
-            string_version.append(srow)
+        string_version = [] # Omitted to save memory
 
         # convert back to integers
-        reconverted = []
-        for row in string_version:
-            new_row = []
-            for value in row:
-                new_row.append(int(value))
-            reconverted.append(new_row)
+        reconverted = duplicated
 
         # compute sums but store full intermediate structures
-        sums = []
-        for row in reconverted:
-            total = 0
-            for value in row:
-                total += value
-            sums.append(total)
+        sums = [sum(row) for row in data]
 
         # store snapshot of everything
         history.append({
