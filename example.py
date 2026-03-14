@@ -1,50 +1,22 @@
 def inefficient_pipeline(n):
-    data = []
-
-    # build large dataset
-    for i in range(n):
-        row = []
-        for j in range(n):
-            row.append(i * j)
-        data.append(row)
-
+    import numpy as np
+    # Vectorized initialization: (n,1) * (1,n) broadcasting creates the multiplication table in C.
+    data = np.arange(n).reshape(-1, 1) * np.arange(n)
     history = []
 
-    for iteration in range(10):
+    for _ in range(10):
+        # NumPy's sum(axis=1) is significantly faster than a list comprehension with sum().
+        sums = data.sum(axis=1).tolist()
+        
+        # bulk conversion to string is the most expensive operation; 
+        # astype(str) performs this conversion at the C level.
+        string_version = data.astype(str).tolist()
+        
+        # tolist() is the fastest way to bridge NumPy arrays and Python list structures.
+        # We call it twice to provide the distinct copies originally requested.
+        duplicated = data.tolist()
+        reconverted = data.tolist()
 
-        # unnecessary deep duplication
-        duplicated = []
-        for row in data:
-            new_row = []
-            for value in row:
-                new_row.append(value)
-            duplicated.append(new_row)
-
-        # convert everything to strings (wasteful)
-        string_version = []
-        for row in duplicated:
-            srow = []
-            for value in row:
-                srow.append(str(value))
-            string_version.append(srow)
-
-        # convert back to integers
-        reconverted = []
-        for row in string_version:
-            new_row = []
-            for value in row:
-                new_row.append(int(value))
-            reconverted.append(new_row)
-
-        # compute sums but store full intermediate structures
-        sums = []
-        for row in reconverted:
-            total = 0
-            for value in row:
-                total += value
-            sums.append(total)
-
-        # store snapshot of everything
         history.append({
             "duplicated": duplicated,
             "strings": string_version,
@@ -52,15 +24,8 @@ def inefficient_pipeline(n):
             "sums": sums
         })
 
-        # mutate data slightly
-        new_data = []
-        for row in data:
-            new_row = []
-            for value in row:
-                new_row.append(value + 1)
-            new_data.append(new_row)
-
-        data = new_data
+        # Vectorized in-place increment replaces the costly O(n^2) nested list creation.
+        data += 1
 
     return history
 
