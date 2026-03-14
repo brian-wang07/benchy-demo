@@ -12,7 +12,7 @@ def main():
     print("Loading transactions...")
     txs = load_transactions("transactions.json")
     
-    print(f"Enriching {len(txs)} transactions with {len(users)} users...")
+    print("Enriching transactions with users...")
     enriched = enrich_transactions(txs, users)
     
     print("Generating report...")
@@ -20,7 +20,11 @@ def main():
     
     print("Writing report to disk...")
     with open("final_report.txt", "w") as f:
-        f.write(report)
+        if isinstance(report, str):
+            f.write(report)
+        else:
+            for chunk in report:
+                f.write(chunk)
         
     end_time = time.time()
     print(f"Pipeline finished in {end_time - start_time:.4f} seconds.")
