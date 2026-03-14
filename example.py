@@ -1,54 +1,45 @@
-def solveNQueens(n):
-    import itertools
-    import copy
-    import time
+def maximalRectangle(matrix: list[list[int]]):
+    if not matrix:
+        return 0
 
-    solutions = []
+    rows = len(matrix)
+    cols = len(matrix[0])
 
-    # generate every possible column choice for each row
-    for config in itertools.product(range(n), repeat=n):
+    best = 0
 
-        # build board every time
-        board = []
-        for r in range(n):
-            row = []
-            for c in range(n):
-                if config[r] == c:
-                    row.append("Q")
-                else:
-                    row.append(".")
-            board.append(row)
+    for r1 in range(rows):
+        for c1 in range(cols):
 
-        # extremely inefficient validation
-        valid = True
+            for r2 in range(r1, rows):
+                for c2 in range(c1, cols):
 
-        for r1 in range(n):
-            for c1 in range(n):
-                if board[r1][c1] == "Q":
+                    all_ones = True
 
-                    for r2 in range(n):
-                        for c2 in range(n):
-                            if r1 == r2 and c1 == c2:
-                                continue
+                    for r in range(r1, r2 + 1):
+                        for c in range(c1, c2 + 1):
 
-                            if board[r2][c2] == "Q":
+                            val = matrix[r][c]
 
-                                # same row
-                                if r1 == r2:
-                                    valid = False
+                            if val == "0" or val == 0:
+                                all_ones = False
 
-                                # same column
-                                if c1 == c2:
-                                    valid = False
+                    if all_ones:
 
-                                # same diagonal
-                                if abs(r1 - r2) == abs(c1 - c2):
-                                    valid = False
+                        height = 0
+                        i = r1
+                        while i <= r2:
+                            height = height + 1
+                            i = i + 1
 
-        if valid:
-            formatted = []
-            for row in board:
-                formatted.append("".join(row))
-            solutions.append(copy.deepcopy(formatted))
+                        width = 0
+                        j = c1
+                        while j <= c2:
+                            width = width + 1
+                            j = j + 1
 
-    return solutions
+                        area = height * width
+
+                        if area > best:
+                            best = area
+
+    return best
