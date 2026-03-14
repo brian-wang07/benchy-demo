@@ -1,27 +1,31 @@
-def hanoi(n, source, auxiliary, destination, moves):
+def hanoi(n, source, auxiliary, destination, write):
     if n == 1:
-        moves.append((source, destination))
+        write(f"{source} {destination}\n")
         return
     
     # move n-1 disks from source to auxiliary
-    hanoi(n - 1, source, destination, auxiliary, moves)
+    hanoi(n - 1, source, destination, auxiliary, write)
     
     # move largest disk
-    moves.append((source, destination))
+    write(f"{source} {destination}\n")
     
     # move n-1 disks from auxiliary to destination
-    hanoi(n - 1, auxiliary, source, destination, moves)
+    hanoi(n - 1, auxiliary, source, destination, write)
 
+
+import sys
 
 def main():
-    n = int(input())
+    line = sys.stdin.readline()
+    if not line:
+        return
+    n = int(line.strip())
     
-    moves = []
-    hanoi(n, 1, 2, 3, moves)
+    # The total number of moves for Tower of Hanoi is 2^n - 1
+    sys.stdout.write(f"{(1 << n) - 1}\n")
     
-    print(len(moves))
-    for a, b in moves:
-        print(a, b)
+    # Direct printing via sys.stdout.write to avoid list memory overhead
+    hanoi(n, 1, 2, 3, sys.stdout.write)
 
 
 if __name__ == "__main__":
