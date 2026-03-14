@@ -1,45 +1,27 @@
 def maximalRectangle(matrix: list[list[int]]):
-    if not matrix:
+    if not matrix or not matrix[0]:
         return 0
 
-    rows = len(matrix)
     cols = len(matrix[0])
-
+    heights = [0] * (cols + 1)
     best = 0
 
-    for r1 in range(rows):
-        for c1 in range(cols):
+    for row in matrix:
+        for c in range(cols):
+            val = row[c]
+            if val == "1" or val == 1:
+                heights[c] += 1
+            else:
+                heights[c] = 0
 
-            for r2 in range(r1, rows):
-                for c2 in range(c1, cols):
-
-                    all_ones = True
-
-                    for r in range(r1, r2 + 1):
-                        for c in range(c1, c2 + 1):
-
-                            val = matrix[r][c]
-
-                            if val == "0" or val == 0:
-                                all_ones = False
-
-                    if all_ones:
-
-                        height = 0
-                        i = r1
-                        while i <= r2:
-                            height = height + 1
-                            i = i + 1
-
-                        width = 0
-                        j = c1
-                        while j <= c2:
-                            width = width + 1
-                            j = j + 1
-
-                        area = height * width
-
-                        if area > best:
-                            best = area
+        stack = [-1]
+        for i in range(cols + 1):
+            while heights[i] < heights[stack[-1]]:
+                h = heights[stack.pop()]
+                w = i - stack[-1] - 1
+                area = h * w
+                if area > best:
+                    best = area
+            stack.append(i)
 
     return best
