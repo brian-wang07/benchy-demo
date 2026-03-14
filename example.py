@@ -1,45 +1,81 @@
-def maximalRectangle(matrix: list[list[int]]):
-    if not matrix:
-        return 0
+def inefficient_pipeline(n):
+    data = []
 
-    rows = len(matrix)
-    cols = len(matrix[0])
+    # build large dataset
+    for i in range(n):
+        row = []
+        for j in range(n):
+            row.append(i * j)
+        data.append(row)
 
-    best = 0
+    history = []
 
-    for r1 in range(rows):
-        for c1 in range(cols):
+    for iteration in range(10):
 
-            for r2 in range(r1, rows):
-                for c2 in range(c1, cols):
+        # unnecessary deep duplication
+        duplicated = []
+        for row in data:
+            new_row = []
+            for value in row:
+                new_row.append(value)
+            duplicated.append(new_row)
 
-                    all_ones = True
+        # convert everything to strings (wasteful)
+        string_version = []
+        for row in duplicated:
+            srow = []
+            for value in row:
+                srow.append(str(value))
+            string_version.append(srow)
 
-                    for r in range(r1, r2 + 1):
-                        for c in range(c1, c2 + 1):
+        # convert back to integers
+        reconverted = []
+        for row in string_version:
+            new_row = []
+            for value in row:
+                new_row.append(int(value))
+            reconverted.append(new_row)
 
-                            val = matrix[r][c]
+        # compute sums but store full intermediate structures
+        sums = []
+        for row in reconverted:
+            total = 0
+            for value in row:
+                total += value
+            sums.append(total)
 
-                            if val == "0" or val == 0:
-                                all_ones = False
+        # store snapshot of everything
+        history.append({
+            "duplicated": duplicated,
+            "strings": string_version,
+            "reconverted": reconverted,
+            "sums": sums
+        })
 
-                    if all_ones:
+        # mutate data slightly
+        new_data = []
+        for row in data:
+            new_row = []
+            for value in row:
+                new_row.append(value + 1)
+            new_data.append(new_row)
 
-                        height = 0
-                        i = r1
-                        while i <= r2:
-                            height = height + 1
-                            i = i + 1
+        data = new_data
 
-                        width = 0
-                        j = c1
-                        while j <= c2:
-                            width = width + 1
-                            j = j + 1
+    return history
 
-                        area = height * width
 
-                        if area > best:
-                            best = area
+def run():
+    result = inefficient_pipeline(600)
 
-    return best
+    # pointless aggregation
+    total = 0
+    for snapshot in result:
+        for s in snapshot["sums"]:
+            total += s
+
+    print("Final:", total)
+
+
+if __name__ == "__main__":
+    run()
