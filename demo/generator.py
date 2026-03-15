@@ -14,19 +14,23 @@ def generate_mock_data(num_users=1000, num_transactions=5000):
             }
             f.write(json.dumps(u) + "\n")
 
-    chosen_users = random.choices(user_ids, k=num_transactions)
-    transactions = [
-        {
-            "id": str(uuid.uuid4()),
-            "user_id": uid,
-            "amount": round(random.uniform(5.0, 500.0), 2),
-            "timestamp": "2026-03-14T12:00:00Z"
-        }
-        for uid in chosen_users
-    ]
-    
-    with open("transactions.json", "w") as f:
-        json.dump(transactions, f, indent=2)
+    if num_transactions == 0:
+        with open("transactions.json", "w") as f:
+            f.write("[]")
+    else:
+        with open("transactions.json", "w") as f:
+            f.write("[\n")
+            for i in range(num_transactions):
+                uid = random.choice(user_ids)
+                t = {
+                    "id": str(uuid.uuid4()),
+                    "user_id": uid,
+                    "amount": round(random.uniform(5.0, 500.0), 2),
+                    "timestamp": "2026-03-14T12:00:00Z"
+                }
+                obj_str = json.dumps(t, indent=2)
+                f.write((",\n" if i > 0 else "") + "  " + obj_str.replace("\n", "\n  "))
+            f.write("\n]")
 
 if __name__ == "__main__":
     print("Generating mock data...")
