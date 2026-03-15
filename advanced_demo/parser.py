@@ -8,15 +8,24 @@ class SensorReading:
         self.status = status
 
 def parse_data(filename: str):
-    readings = []
-    with open(filename, 'r') as f:
-        reader = csv.DictReader(f)
+    with open(filename, 'r', newline='') as f:
+        reader = csv.reader(f)
+        try:
+            header = next(reader)
+        except StopIteration:
+            return
+
+        # Pre-map column names to indices for fast O(1) lookup during iteration
+        indices = {name: i for i, name in enumerate(header)}
+        ts_idx = indices['timestamp']
+        sid_idx = indices['sensor_id']
+        temp_idx = indices['temperature']
+        stat_idx = indices['status']
+
         for row in reader:
-            reading = SensorReading(
-                row['timestamp'],
-                row['sensor_id'],
-                row['temperature'],
-                row['status']
+            yield SensorReading(
+                row[ts_idx],
+                row[sid_idx],
+                row[temp_idx],
+                row[stat_idx]
             )
-            readings.append(reading)
-    return readings
