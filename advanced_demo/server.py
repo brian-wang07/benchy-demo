@@ -14,25 +14,19 @@ async def user_dashboard(user_id: str, request: Request):
     Endpoint mapping a user's dashboard.
     """
     
-    # Bottleneck #1: Blocking the Async Event Loop
-    # Simulated synchronous work (e.g., synchronous auth check or heavy CPU computation).
-    # Because this route is `async def`, `time.sleep` blocks the single event loop thread,
-    # hanging all other concurrent requests. Concurrency scaling is zeroed out.
-    time.sleep(0.2) 
+    # Optimization: Use non-blocking sleep to allow the event loop to handle other requests
+    await asyncio.sleep(0.2) 
     
-    user = database.get_user(user_id)
+    # Optimization: Run synchronous DB call in a thread pool to avoid blocking the event loop
+    user = await asyncio.to_thread(database.get_user, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    enriched_txs = []
-    
-    # Bottleneck #3: N+1 Query Anti-Pattern
-    # Loops and makes separate DB calls per transaction. 
-    # Combined with the file churn in database.py, this is a massive performance floor.
-    for tx_id in user["transactions"]:
-        tx_data = database.get_transaction(tx_id)
-        if tx_data:
-            enriched_txs.append(tx_data)
+    # Optimization: Solve N+1 bottleneck by fetching all transactions concurrently
+    # This transforms sequential blocking calls into parallel execution
+    tasks = [asyncio.to_thread(database.get_transaction, tx_id) for tx_id in user["transactions"]]
+    results = await asyncio.gather(*tasks)
+    enriched_txs = [tx for tx in results if tx]
             
     response = {
         "user_info": user["name"],
@@ -40,9 +34,11 @@ async def user_dashboard(user_id: str, request: Request):
         "transactions": enriched_txs
     }
     
-    # Bottleneck #4: Memory Leak
-    # request.url captures unique query strings or paths, making the dictionary grow forever
-    # while retaining historical data indefinitely.
+    # Optimization: Prevent memory leak by bounding the analytics cache
+    if len(analytics_data) > 10000:
+        # Dictionary keys in Python 3.7+ are ordered; this removes the oldest entry (FIFO)
+        del analytics_data[next(iter(analytics_data))]
+
     unique_request_id = f"{request.url}_{time.time()}"
     analytics_data[unique_request_id] = {
         "user_id": user_id,
