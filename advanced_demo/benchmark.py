@@ -3,15 +3,19 @@ import aiohttp
 import time
 
 async def fetch(session, user_id):
-    start = time.time()
     url = f"http://127.0.0.1:8000/user/{user_id}/dashboard"
+    start = time.perf_counter()
     try:
         async with session.get(url) as response:
             await response.json()
-            return time.time() - start
+        return time.perf_counter() - start
     except Exception as e:
-        print(f"Error fetching {url}: {e}")
-        return time.time() - start
+        # Capture latency immediately to avoid including logging overhead
+        elapsed = time.perf_counter() - start
+        # Offload the blocking print without awaiting it to keep the task lifecycle short
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, print, f"Error fetching {url}: {e}")
+        return elapsed
 
 async def main():
     print("Starting server benchmark with 20 concurrent requests...")
@@ -20,11 +24,8 @@ async def main():
     # Use a TCP connection pool
     connector = aiohttp.TCPConnector(limit=50)
     async with aiohttp.ClientSession(connector=connector) as session:
-        tasks = []
-        for i in range(20):
-            # Hit different random users
-            tasks.append(fetch(session, f"user_{i}"))
-        
+        # Optimization: Use list comprehension for faster task creation
+        tasks = [fetch(session, f"user_{i}") for i in range(20)]
         times = await asyncio.gather(*tasks)
     
     end_global = time.time()
