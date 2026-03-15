@@ -8,31 +8,33 @@ app = FastAPI()
 # Bottleneck #4: Unbounded memory leak
 analytics_data = {}
 
+import asyncio
+from fastapi.concurrency import run_in_threadpool
+
 @app.get("/user/{user_id}/dashboard")
 async def user_dashboard(user_id: str, request: Request):
     """
     Endpoint mapping a user's dashboard.
     """
     
-    # Bottleneck #1: Blocking the Async Event Loop
-    # Simulated synchronous work (e.g., synchronous auth check or heavy CPU computation).
-    # Because this route is `async def`, `time.sleep` blocks the single event loop thread,
-    # hanging all other concurrent requests. Concurrency scaling is zeroed out.
-    time.sleep(0.2) 
+    # Fix Bottleneck #1: Non-blocking sleep allows the event loop to handle other requests.
+    await asyncio.sleep(0.2) 
     
-    user = database.get_user(user_id)
+    # Fix Bottleneck #2: Offload blocking sync I/O to a threadpool to keep the loop free.
+    user = await run_in_threadpool(database.get_user, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    enriched_txs = []
-    
-    # Bottleneck #3: N+1 Query Anti-Pattern
-    # Loops and makes separate DB calls per transaction. 
-    # Combined with the file churn in database.py, this is a massive performance floor.
-    for tx_id in user["transactions"]:
-        tx_data = database.get_transaction(tx_id)
-        if tx_data:
-            enriched_txs.append(tx_data)
+    # Fix Bottleneck #3: Solve N+1 by fetching all transactions in parallel.
+    # Instead of N sequential calls, we execute them concurrently in the thread pool.
+    tx_ids = user.get("transactions", [])
+    if tx_ids:
+        tasks = [run_in_threadpool(database.get_transaction, tx_id) for tx_id in tx_ids]
+        # Gather all results concurrently
+        results = await asyncio.gather(*tasks)
+        enriched_txs = [tx for tx in results if tx]
+    else:
+        enriched_txs = []
             
     response = {
         "user_info": user["name"],
@@ -40,9 +42,11 @@ async def user_dashboard(user_id: str, request: Request):
         "transactions": enriched_txs
     }
     
-    # Bottleneck #4: Memory Leak
-    # request.url captures unique query strings or paths, making the dictionary grow forever
-    # while retaining historical data indefinitely.
+    # Fix Bottleneck #4: Prevent unbounded memory leak with a FIFO eviction strategy.
+    # Dicts in Python 3.7+ maintain insertion order, making this O(1).
+    if len(analytics_data) >= 10000:
+        analytics_data.pop(next(iter(analytics_data)))
+
     unique_request_id = f"{request.url}_{time.time()}"
     analytics_data[unique_request_id] = {
         "user_id": user_id,
