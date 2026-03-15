@@ -2,21 +2,18 @@ def enrich_transactions(transactions, users):
     """
     Combines transaction data with user data.
     """
-    enriched = []
-    for txn in transactions:
-        user_info = None
-        # Runtime bottleneck: Iterating through the entire users list for every transaction
-        for user in users:
-            if user['id'] == txn['user_id']:
-                user_info = user
-                break
-        
-        # Merge dictionaries
-        enriched_txn = txn.copy()
-        enriched_txn['user'] = user_info
-        enriched.append(enriched_txn)
-        
-    return enriched
+    # Create a lookup map for users. O(U) time complexity.
+    # We manually build the dict to ensure parity with the original 'break' logic 
+    # (keeping the first occurrence of a user ID).
+    user_map = {}
+    for user in users:
+        u_id = user['id']
+        if u_id not in user_map:
+            user_map[u_id] = user
+    
+    # Enrich transactions using the map. O(T) time complexity.
+    # Total complexity: O(T + U)
+    return [{**txn, 'user': user_map.get(txn['user_id'])} for txn in transactions]
 
 def generate_report(enriched_transactions):
     """
