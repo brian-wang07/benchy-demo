@@ -9,21 +9,18 @@ def filter_active_sensors(readings):
     return active_readings
 
 def extract_dates(readings):
-    # Runtime Bottleneck #1: datetime.strptime is very slow for bulk operations.
-    # Since ISO8601 is fixed length, string slicing (r.timestamp[:10]) is vastly faster.
-    dates = []
-    for r in readings:
-        dt = datetime.strptime(r.timestamp, "%Y-%m-%dT%H:%M:%SZ")
-        dates.append(dt.date())
-    return dates
+    return [datetime(int(r.timestamp[0:4]), int(r.timestamp[5:7]), int(r.timestamp[8:10])).date() for r in readings]
 
 def moving_average(readings, window=200):
-    # Runtime/Algorithmic Bottleneck #2: Re-summing the entire window every iteration O(N*K).
-    # Should use a running sum or collections.deque.
     temps = [r.temperature for r in readings]
-    averages = []
-    for i in range(len(temps) - window + 1):
-        # sum() creates an internal loop calculating K elements every time
-        avg = sum(temps[i:i+window]) / window
-        averages.append(avg)
+    if len(temps) < window:
+        return []
+    
+    current_sum = sum(temps[:window])
+    averages = [current_sum / window]
+    
+    for i in range(1, len(temps) - window + 1):
+        current_sum += temps[i + window - 1] - temps[i - 1]
+        averages.append(current_sum / window)
+        
     return averages
