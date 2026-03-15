@@ -4,25 +4,29 @@ import os
 
 def generate_db(filename="db.json"):
     print("Generating mock database. This might take a second...")
-    data = {
-        "users": {},
-        "transactions": {}
-    }
+    users = {}
+    transactions = {}
+    
+    rand = random.random
     # 2000 users, 20 transactions each
     for i in range(2000):
         tx_ids = [f"tx_{i}_{j}" for j in range(20)]
-        data["users"][f"user_{i}"] = {
+        users[f"user_{i}"] = {
             "name": f"User {i}", 
             "email": f"user{i}@example.com",
             "transactions": tx_ids
         }
         for tx_id in tx_ids:
-             data["transactions"][tx_id] = {
+             transactions[tx_id] = {
                  "id": tx_id,
-                 "amount": round(random.uniform(10, 500), 2), 
+                 "amount": round(10.0 + rand() * 490.0, 2), 
                  "status": "completed"
              }
              
+    data = {
+        "users": users,
+        "transactions": transactions
+    }
     with open(filename, "w") as f:
         json.dump(data, f)
     
