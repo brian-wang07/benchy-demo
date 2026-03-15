@@ -2,16 +2,21 @@ import asyncio
 import aiohttp
 import time
 
+import json
+
 async def fetch(session, user_id):
-    start = time.time()
+    start = time.perf_counter()
     url = f"http://127.0.0.1:8000/user/{user_id}/dashboard"
     try:
         async with session.get(url) as response:
-            await response.json()
-            return time.time() - start
+            # Read the response body asynchronously (I/O bound)
+            body = await response.read()
+            # Offload CPU-bound JSON parsing to a thread to avoid blocking the event loop
+            await asyncio.to_thread(json.loads, body)
+            return time.perf_counter() - start
     except Exception as e:
         print(f"Error fetching {url}: {e}")
-        return time.time() - start
+        return time.perf_counter() - start
 
 async def main():
     print("Starting server benchmark with 20 concurrent requests...")
