@@ -6,11 +6,15 @@ def main():
     print("Starting processing pipeline...")
     start_time = time.time()
     
-    print("Loading users...")
-    users = load_users("users.jsonl")
+    import concurrent.futures
     
-    print("Loading transactions...")
-    txs = load_transactions("transactions.json")
+    print("Loading users and transactions concurrently...")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        users_future = executor.submit(load_users, "users.jsonl")
+        txs_future = executor.submit(load_transactions, "transactions.json")
+        
+        users = users_future.result()
+        txs = txs_future.result()
     
     print(f"Enriching {len(txs)} transactions with {len(users)} users...")
     enriched = enrich_transactions(txs, users)
