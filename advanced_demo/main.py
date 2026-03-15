@@ -4,21 +4,28 @@ import os
 from data_generator import generate_csv
 from parser import parse_data
 from analytics import filter_active_sensors, extract_dates, moving_average
-from api_client import get_locations_for_sensors
+from concurrent.futures import ThreadPoolExecutor
+from api_client import fetch_sensor_location_sync
+
+def get_locations_for_sensors(sensor_ids):
+    """Concurrent implementation of location fetching to resolve sequential I/O bottleneck."""
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        return list(executor.map(fetch_sensor_location_sync, sensor_ids))
+
+tracemalloc.start()
 
 def measure_performance(func, *args, **kwargs):
     print(f"\nRunning {func.__name__}...")
-    tracemalloc.start()
+    tracemalloc.reset_peak()
     start_time = time.perf_counter()
     
     result = func(*args, **kwargs)
     
     end_time = time.perf_counter()
-    current_mem, peak_mem = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
+    _, peak_mem = tracemalloc.get_traced_memory()
     
     print(f"Time elapsed: {end_time - start_time:.4f} seconds")
-    print(f"Peak memory: {peak_mem / 10**6:.2f} MB")
+    print(f"Peak memory: {peak_mem / 1000000.0:.2f} MB")
     return result
 
 def main():
