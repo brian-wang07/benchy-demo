@@ -1,8 +1,6 @@
 import csv
 
 class SensorReading:
-    # Memory Bottleneck #1: Lacks __slots__. 
-    # Python creates a __dict__ for every instance, leading to large memory overhead.
     def __init__(self, timestamp, sensor_id, temperature, status):
         self.timestamp = timestamp
         self.sensor_id = sensor_id
