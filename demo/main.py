@@ -8,7 +8,7 @@ def main():
     start_time = time.time()
     
     print("Loading users and transactions concurrently...")
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=2) as executor:
         future_users = executor.submit(load_users, "users.jsonl")
         future_txs = executor.submit(load_transactions, "transactions.json")
         users = future_users.result()
