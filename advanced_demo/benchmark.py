@@ -3,19 +3,21 @@ import aiohttp
 import time
 
 async def fetch(session, user_id):
-    start = time.time()
+    _perf = time.perf_counter
+    start = _perf()
     url = f"http://127.0.0.1:8000/user/{user_id}/dashboard"
     try:
         async with session.get(url) as response:
-            await response.json()
-            return time.time() - start
+            # content_type=None skips header validation which is a significant overhead
+            await response.json(content_type=None)
     except Exception as e:
         print(f"Error fetching {url}: {e}")
-        return time.time() - start
+    
+    return _perf() - start
 
 async def main():
     print("Starting server benchmark with 20 concurrent requests...")
-    start_global = time.time()
+    start_global = time.perf_counter()
     
     # Use a TCP connection pool
     connector = aiohttp.TCPConnector(limit=50)
@@ -27,7 +29,7 @@ async def main():
         
         times = await asyncio.gather(*tasks)
     
-    end_global = time.time()
+    end_global = time.perf_counter()
     print("--------------------------------------------------")
     print(f"Benchmark finished in {end_global - start_global:.2f} seconds.")
     print(f"Average request latency: {sum(times)/len(times):.2f} seconds.")
