@@ -4,7 +4,8 @@ import os
 from data_generator import generate_csv
 from parser import parse_data
 from analytics import filter_active_sensors, extract_dates, moving_average
-from api_client import get_locations_for_sensors
+import concurrent.futures
+from api_client import fetch_sensor_location_sync
 
 def measure_performance(func, *args, **kwargs):
     print(f"\nRunning {func.__name__}...")
@@ -39,7 +40,12 @@ def main():
     
     # Run API test on a small unique subset to avoid hanging the benchmark
     unique_sensors = list({r.sensor_id for r in active[:5000]})
-    locations = measure_performance(get_locations_for_sensors, unique_sensors[:200])
+
+    def get_locations_concurrent(sensors):
+        with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
+            return list(executor.map(fetch_sensor_location_sync, sensors))
+
+    locations = measure_performance(get_locations_concurrent, unique_sensors[:200])
     print(f"Fetched locations for {len(locations)} sensors.")
     print(f"Calculated {len(averages)} moving averages.")
 
