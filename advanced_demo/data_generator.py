@@ -8,20 +8,32 @@ def generate_db(filename="db.json"):
         "users": {},
         "transactions": {}
     }
-    # 2000 users, 20 transactions each
+    users = data["users"]
+    transactions = data["transactions"]
+    
+    # Cache methods locally for faster access in the hot loop
+    runif = random.uniform
+    rnd = round
+
     for i in range(2000):
-        tx_ids = [f"tx_{i}_{j}" for j in range(20)]
-        data["users"][f"user_{i}"] = {
+        user_id = f"user_{i}"
+        tx_ids = [None] * 20  # Pre-allocate list to avoid resizing
+        
+        users[user_id] = {
             "name": f"User {i}", 
             "email": f"user{i}@example.com",
             "transactions": tx_ids
         }
-        for tx_id in tx_ids:
-             data["transactions"][tx_id] = {
-                 "id": tx_id,
-                 "amount": round(random.uniform(10, 500), 2), 
-                 "status": "completed"
-             }
+        
+        # Single pass: populate both the list of IDs and the transaction details
+        for j in range(20):
+            tx_id = f"tx_{i}_{j}"
+            tx_ids[j] = tx_id
+            transactions[tx_id] = {
+                "id": tx_id,
+                "amount": rnd(runif(10, 500), 2), 
+                "status": "completed"
+            }
              
     with open(filename, "w") as f:
         json.dump(data, f)
