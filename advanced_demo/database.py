@@ -2,20 +2,32 @@ import json
 
 DB_FILE = "db.json"
 
-def get_user(user_id: str):
-    """
-    Simulates a DB fetch for a user.
-    Bottleneck: Opens and decodes the entire JSON payload on every single call.
-    """
+_DB_CACHE = None
+
+def _get_db():
+    global _DB_CACHE
+    if _DB_CACHE is None:
+        with open(DB_FILE, "r") as f:
+            _DB_CACHE = json.load(f)
+    return _DB_CACHE
+
+_USERS_CACHE = None
+_TX_CACHE = None
+
+def _initialize_caches():
+    global _USERS_CACHE, _TX_CACHE
     with open(DB_FILE, "r") as f:
-        data = json.load(f)
-    return data["users"].get(user_id)
+        # bulk read + loads is often faster than stream parsing for medium-sized JSON
+        data = json.loads(f.read())
+    _USERS_CACHE = data["users"]
+    _TX_CACHE = data["transactions"]
+
+def get_user(user_id: str):
+    if _USERS_CACHE is None:
+        _initialize_caches()
+    return _USERS_CACHE.get(user_id)
 
 def get_transaction(tx_id: str):
-    """
-    Simulates a DB fetch for a single transaction.
-    Bottleneck: Also opens and decodes the JSON payload for *every* individual transaction.
-    """
-    with open(DB_FILE, "r") as f:
-        data = json.load(f)
-    return data["transactions"].get(tx_id)
+    if _TX_CACHE is None:
+        _initialize_caches()
+    return _TX_CACHE.get(tx_id)
