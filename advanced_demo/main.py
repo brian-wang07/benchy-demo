@@ -21,6 +21,17 @@ def measure_performance(func, *args, **kwargs):
     print(f"Peak memory: {peak_mem / 10**6:.2f} MB")
     return result
 
+import itertools
+from concurrent.futures import ThreadPoolExecutor
+
+def get_locations_concurrently(sensors):
+    with ThreadPoolExecutor(max_workers=20) as executor:
+        chunks = [sensors[i:i + 10] for i in range(0, len(sensors), 10)]
+        res = []
+        for r in executor.map(get_locations_for_sensors, chunks):
+            res.extend(r)
+        return res
+
 def main():
     csv_file = "sensor_data.csv"
     if not os.path.exists(csv_file):
@@ -32,14 +43,15 @@ def main():
     active = measure_performance(filter_active_sensors, readings)
     print(f"Filtered {len(active)} active readings.")
     
-    dates = measure_performance(extract_dates, active[:50000]) # Run on subset to save time
+    active_50k = active[:50000]
+    dates = measure_performance(extract_dates, active_50k) # Run on subset to save time
     print(f"Extracted dates for {len(dates)} readings.")
     
-    averages = measure_performance(moving_average, active[:50000], window=200)
+    averages = measure_performance(moving_average, active_50k, window=200)
     
     # Run API test on a small unique subset to avoid hanging the benchmark
     unique_sensors = list({r.sensor_id for r in active[:5000]})
-    locations = measure_performance(get_locations_for_sensors, unique_sensors[:200])
+    locations = measure_performance(get_locations_concurrently, unique_sensors[:200])
     print(f"Fetched locations for {len(locations)} sensors.")
     print(f"Calculated {len(averages)} moving averages.")
 

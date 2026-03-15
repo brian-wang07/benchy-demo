@@ -9,14 +9,26 @@ def generate_csv(filename: str, num_rows: int = 500000):
     with open(filename, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(["timestamp", "sensor_id", "temperature", "status"])
-        for i in range(num_rows):
-            dt = start_time + timedelta(minutes=i)
-            # Fixed ISO8601 format
-            ts = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-            sensor_id = f"sensor_{random.randint(1, 1000)}"
-            temp = round(random.uniform(-20.0, 50.0), 2)
-            status = random.choice(statuses)
-            writer.writerow([ts, sensor_id, temp, status])
+        
+        sensor_ids = [f"sensor_{i}" for i in range(1, 1001)]
+        dt = start_time
+        delta = timedelta(minutes=1)
+        uniform = random.uniform
+        
+        chunk_size = 10000
+        rem = num_rows
+        while rem > 0:
+            current = min(chunk_size, rem)
+            sensors = random.choices(sensor_ids, k=current)
+            stats = random.choices(statuses, k=current)
+            rows = []
+            for i in range(current):
+                ts = dt.isoformat(timespec='seconds') + "Z"
+                temp = round(uniform(-20.0, 50.0), 2)
+                rows.append([ts, sensors[i], temp, stats[i]])
+                dt += delta
+            writer.writerows(rows)
+            rem -= current
 
 if __name__ == "__main__":
     print("Generating 500k rows of sensor data...")
