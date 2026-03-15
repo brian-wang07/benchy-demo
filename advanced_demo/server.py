@@ -14,25 +14,17 @@ async def user_dashboard(user_id: str, request: Request):
     Endpoint mapping a user's dashboard.
     """
     
-    # Bottleneck #1: Blocking the Async Event Loop
-    # Simulated synchronous work (e.g., synchronous auth check or heavy CPU computation).
-    # Because this route is `async def`, `time.sleep` blocks the single event loop thread,
-    # hanging all other concurrent requests. Concurrency scaling is zeroed out.
-    time.sleep(0.2) 
+    # Fixed: Use non-blocking sleep to keep the event loop free for other requests
+    await asyncio.sleep(0.2) 
     
     user = database.get_user(user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    enriched_txs = []
-    
-    # Bottleneck #3: N+1 Query Anti-Pattern
-    # Loops and makes separate DB calls per transaction. 
-    # Combined with the file churn in database.py, this is a massive performance floor.
-    for tx_id in user["transactions"]:
-        tx_data = database.get_transaction(tx_id)
-        if tx_data:
-            enriched_txs.append(tx_data)
+    # Optimized: Use a bulk fetch to avoid the N+1 query problem.
+    # This reduces file I/O operations from O(N) to O(1).
+    tx_ids = user.get("transactions", [])
+    enriched_txs = [tx for tx in database.get_transactions(tx_ids) if tx]
             
     response = {
         "user_info": user["name"],
@@ -40,13 +32,11 @@ async def user_dashboard(user_id: str, request: Request):
         "transactions": enriched_txs
     }
     
-    # Bottleneck #4: Memory Leak
-    # request.url captures unique query strings or paths, making the dictionary grow forever
-    # while retaining historical data indefinitely.
-    unique_request_id = f"{request.url}_{time.time()}"
-    analytics_data[unique_request_id] = {
-        "user_id": user_id,
-        "tx_count": len(enriched_txs)
+    # Optimized: Fixed memory leak by using a stable key (user_id).
+    # This bounds the dictionary size and prevents it from growing indefinitely.
+    analytics_data[user_id] = {
+        "last_tx_count": len(enriched_txs),
+        "last_accessed": time.time()
     }
     
     return response
