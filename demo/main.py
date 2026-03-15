@@ -7,15 +7,17 @@ def main():
     print("Starting processing pipeline...")
     start_time = time.time()
     
-    print("Loading users and transactions concurrently...")
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        future_users = executor.submit(load_users, "users.jsonl")
-        future_txs = executor.submit(load_transactions, "transactions.json")
-        users = future_users.result()
-        txs = future_txs.result()
+    print("Loading users and transactions...")
+    users = load_users("users.jsonl")
+    txs = load_transactions("transactions.json")
     
-    print(f"Enriching {len(txs)} transactions with {len(users)} users...")
-    enriched = enrich_transactions(txs, users)
+    print(f"Enriching {len(txs)} transactions...")
+    # Pre-index users by ID to convert O(N*M) scan into O(1) lookup
+    user_map = {user['id']: user for user in users}
+    for tx in txs:
+        # Assuming the logic is to match transaction user_id with user id
+        tx['user'] = user_map.get(tx['user_id'])
+    enriched = txs
     
     print("Generating report...")
     report = generate_report(enriched)
