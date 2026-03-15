@@ -3,23 +3,26 @@ import random
 import uuid
 
 def generate_mock_data(num_users=1000, num_transactions=5000):
-    user_ids = [str(uuid.uuid4()) for _ in range(num_users)]
+    uuid4 = uuid.uuid4
+    randint = random.randint
+    uniform = random.uniform
+
+    user_ids = [str(uuid4()) for _ in range(num_users)]
+    
+    user_lines = [
+        f'{{"id": "{uid}", "name": "User_{randint(1, 10000)}", "email": "user{randint(1, 10000)}@example.com"}}\n'
+        for uid in user_ids
+    ]
     
     with open("users.jsonl", "w") as f:
-        for user_id in user_ids:
-            u = {
-                "id": user_id,
-                "name": f"User_{random.randint(1, 10000)}",
-                "email": f"user{random.randint(1,10000)}@example.com"
-            }
-            f.write(json.dumps(u) + "\n")
+        f.writelines(user_lines)
 
     chosen_users = random.choices(user_ids, k=num_transactions)
     transactions = [
         {
-            "id": str(uuid.uuid4()),
+            "id": str(uuid4()),
             "user_id": uid,
-            "amount": round(random.uniform(5.0, 500.0), 2),
+            "amount": round(uniform(5.0, 500.0), 2),
             "timestamp": "2026-03-14T12:00:00Z"
         }
         for uid in chosen_users
