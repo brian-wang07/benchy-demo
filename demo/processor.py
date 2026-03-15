@@ -1,16 +1,20 @@
 def enrich_transactions(transactions, users):
     """
     Combines transaction data with user data.
-    Intentional bottleneck: O(N * M) nested loop for lookups.
+    Optimized: O(N + M) using a hash map for user lookups.
     """
+    # Build a lookup table for users. 
+    # We only set the key if it's not present to match the 'break' behavior (first match wins).
+    user_map = {}
+    for user in users:
+        u_id = user['id']
+        if u_id not in user_map:
+            user_map[u_id] = user
+            
     enriched = []
     for txn in transactions:
-        user_info = None
-        # Runtime bottleneck: Iterating through the entire users list for every transaction
-        for user in users:
-            if user['id'] == txn['user_id']:
-                user_info = user
-                break
+        # O(1) average case lookup
+        user_info = user_map.get(txn['user_id'])
         
         # Merge dictionaries
         enriched_txn = txn.copy()
