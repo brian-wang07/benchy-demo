@@ -39,7 +39,29 @@ def main():
     
     # Run API test on a small unique subset to avoid hanging the benchmark
     unique_sensors = list({r.sensor_id for r in active[:5000]})
-    locations = measure_performance(get_locations_for_sensors, unique_sensors[:200])
+    
+    def parallel_get_locations(sensors):
+        from concurrent.futures import ThreadPoolExecutor
+        with ThreadPoolExecutor(max_workers=50) as executor:
+            # Pass chunks of 1 to run the underlying sync fetches concurrently
+            results = list(executor.map(get_locations_for_sensors, [[s] for s in sensors]))
+        
+        if not results:
+            return get_locations_for_sensors([])
+            
+        if isinstance(results[0], dict):
+            merged = {}
+            for r in results:
+                merged.update(r)
+            return merged
+        elif isinstance(results[0], list):
+            merged = []
+            for r in results:
+                merged.extend(r)
+            return merged
+        return results
+
+    locations = measure_performance(parallel_get_locations, unique_sensors[:200])
     print(f"Fetched locations for {len(locations)} sensors.")
     print(f"Calculated {len(averages)} moving averages.")
 

@@ -1,8 +1,8 @@
 import csv
 
 class SensorReading:
-    # Memory Bottleneck #1: Lacks __slots__. 
-    # Python creates a __dict__ for every instance, leading to large memory overhead.
+    __slots__ = ['timestamp', 'sensor_id', 'temperature', 'status']
+
     def __init__(self, timestamp, sensor_id, temperature, status):
         self.timestamp = timestamp
         self.sensor_id = sensor_id
@@ -10,15 +10,25 @@ class SensorReading:
         self.status = status
 
 def parse_data(filename: str):
-    readings = []
     with open(filename, 'r') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            reading = SensorReading(
-                row['timestamp'],
-                row['sensor_id'],
-                row['temperature'],
-                row['status']
+        reader = csv.reader(f)
+        try:
+            header = next(reader)
+        except StopIteration:
+            return []
+            
+        ts_idx = header.index('timestamp')
+        id_idx = header.index('sensor_id')
+        temp_idx = header.index('temperature')
+        status_idx = header.index('status')
+        
+        readings = [
+            SensorReading(
+                row[ts_idx],
+                row[id_idx],
+                row[temp_idx],
+                row[status_idx]
             )
-            readings.append(reading)
+            for row in reader
+        ]
     return readings
