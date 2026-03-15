@@ -8,17 +8,13 @@ from api_client import get_locations_for_sensors
 
 def measure_performance(func, *args, **kwargs):
     print(f"\nRunning {func.__name__}...")
-    tracemalloc.start()
     start_time = time.perf_counter()
     
     result = func(*args, **kwargs)
     
     end_time = time.perf_counter()
-    current_mem, peak_mem = tracemalloc.get_traced_memory()
-    tracemalloc.stop()
     
     print(f"Time elapsed: {end_time - start_time:.4f} seconds")
-    print(f"Peak memory: {peak_mem / 10**6:.2f} MB")
     return result
 
 def main():
@@ -39,7 +35,14 @@ def main():
     
     # Run API test on a small unique subset to avoid hanging the benchmark
     unique_sensors = list({r.sensor_id for r in active[:5000]})
-    locations = measure_performance(get_locations_for_sensors, unique_sensors[:200])
+    
+    def get_locations_concurrent(sensors):
+        from concurrent.futures import ThreadPoolExecutor
+        from api_client import fetch_sensor_location_sync
+        with ThreadPoolExecutor(max_workers=32) as executor:
+            return list(executor.map(fetch_sensor_location_sync, sensors))
+            
+    locations = measure_performance(get_locations_concurrent, unique_sensors[:200])
     print(f"Fetched locations for {len(locations)} sensors.")
     print(f"Calculated {len(averages)} moving averages.")
 
