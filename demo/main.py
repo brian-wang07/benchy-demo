@@ -17,8 +17,15 @@ def main():
     print(f"Enriching {len(txs)} transactions with {len(users)} users...")
     enriched = enrich_transactions(txs, users)
     
+    # Free memory of raw data to reduce peak memory footprint
+    del txs
+    del users
+    
     print("Generating report...")
     report = generate_report(enriched)
+    
+    # Free memory of enriched data
+    del enriched
     
     print("Writing report to disk...")
     with open("final_report.txt", "w") as f:
