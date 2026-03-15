@@ -1,17 +1,16 @@
 def enrich_transactions(transactions, users):
     """
-    Combines transaction data with user data.
+    Combines transaction data with user data using O(1) lookups.
     """
+    # Pre-compute a user lookup table for O(1) access
+    user_map = {user['id']: user for user in users}
+    
     enriched = []
     for txn in transactions:
-        user_info = None
-        # Runtime bottleneck: Iterating through the entire users list for every transaction
-        for user in users:
-            if user['id'] == txn['user_id']:
-                user_info = user
-                break
+        # Dictionary lookup is significantly faster than a nested loop
+        user_info = user_map.get(txn['user_id'])
         
-        # Merge dictionaries
+        # Create a copy and add the user info to maintain functional parity
         enriched_txn = txn.copy()
         enriched_txn['user'] = user_info
         enriched.append(enriched_txn)
@@ -20,15 +19,16 @@ def enrich_transactions(transactions, users):
 
 def generate_report(enriched_transactions):
     """
-    Generates a textual report of all enriched transactions.
+    Generates a textual report using efficient string joining.
     """
-    report = "--- TRANSACTION REPORT ---\n"
+    lines = ["--- TRANSACTION REPORT ---\n"]
     
     for txn in enriched_transactions:
-        # Runtime/Memory bottleneck: String immutability causes a new string 
-        # allocation and copy on each iteration
+        # Get user name with fallback, same logic as original
         user_name = txn['user']['name'] if txn['user'] else "Unknown"
-        report += f"Transaction ID: {txn['id']} | User: {user_name} | Amount: ${txn['amount']}\n"
+        # Append to list instead of concatenating strings
+        lines.append(f"Transaction ID: {txn['id']} | User: {user_name} | Amount: ${txn['amount']}\n")
         
-    report += "--- END OF REPORT ---\n"
-    return report
+    lines.append("--- END OF REPORT ---\n")
+    # Join all segments in a single O(L) operation
+    return "".join(lines)
