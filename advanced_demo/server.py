@@ -18,7 +18,8 @@ async def user_dashboard(user_id: str, request: Request):
     # Simulated synchronous work (e.g., synchronous auth check or heavy CPU computation).
     # Because this route is `async def`, `time.sleep` blocks the single event loop thread,
     # hanging all other concurrent requests. Concurrency scaling is zeroed out.
-    time.sleep(0.2) 
+    import asyncio
+    await asyncio.sleep(0.2) 
     
     user = database.get_user(user_id)
     if not user:
