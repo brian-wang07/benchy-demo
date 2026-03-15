@@ -1,42 +1,51 @@
-# Advanced Python Bottlenecks Demo
+# Advanced Web Server Bottleneck Demo
 
-This module demonstrates more nuanced runtime and memory bottlenecks in Python code, particularly when dealing with bulk data processing. The optimizations here require a deeper understanding of Python's internal memory management and standard library overhead.
+This project tests an optimization agent's ability to locate highly nuanced bugs that exist predominantly in web servers contexts, where concurrency, memory leaking, and data-retrieval patterns dictate performance. Unlike simple processing scripts, servers suffer drastically from incorrect event-loop usage and I/O inefficiencies.
 
-## How to run
-Run the main file to generate the data and get baseline benchmarks:
-```bash
-cd advanced_demo
-python main.py
-```
+## How to Run
+
+1. **Install dependencies:**
+   ```bash
+   cd advanced_demo
+   pip install -r requirements.txt
+   ```
+
+2. **Generate the mock database:**
+   ```bash
+   python data_generator.py
+   ```
+
+3. **Start the FastAPI Server:**
+   Keep this running in one terminal.
+   ```bash
+   uvicorn server:app --port 8000
+   ```
+
+4. **Run the Benchmark:**
+   In a *second* terminal, execute the concurrent load tester.
+   ```bash
+   python benchmark.py
+   ```
 
 ## Optimization Opportunities (Agent Targets)
 
-### 1. Memory Bottleneck: Missing `__slots__`
-* **File:** `parser.py` 
-* **Class:** `SensorReading`
-* **Issue:** By default, Python creates a dynamic `__dict__` dictionary for every object instance. When allocating 500,000 objects in memory, this dictionary overhead becomes enormous, unnecessarily consuming large amounts of RAM.
-* **Expected Optimization:** Add `__slots__ = ['timestamp', 'sensor_id', 'temperature', 'status']` to the class definition to prevent `__dict__` creation. This yields a massive reduction in memory usage.
+### 1. Concurrency: Blocking the Async Event Loop
+* **File:** `server.py`
+* **Function:** `user_dashboard()` 
+* **Issue:** The endpoint uses `async def` but executes a synchronous blocking call `time.sleep(0.2)` (which simulates a sync DB driver or dense CPU computation). FastAPI runs `async def` endpoints directly on its single async event loop thread. By sleeping synchronously, it prevents the server from processing *any* other requests simultaneously. Max request times will scale linearly with concurrency.
+* **Expected Fix:** The agent should either use native asynchronous sleep (`await asyncio.sleep(0.2)`), or drop the `async` keyword to use standard `def` which offloads the handler to FastAPI's background threadpool, thereby unlocking parallel execution.
 
-### 2. Memory Bottleneck: Eager List Appends vs. Lazy Generators
-* **File:** `analytics.py`
-* **Function:** `filter_active_sensors()`
-* **Issue:** The function iterates over all readings and appends active ones to a completely new list, duplicating references and taking up a large chunk of memory simultaneously.
-* **Expected Optimization:** Change this to a generator structure (using `yield r` or a generator expression) to iterate lazily, achieving a near-zero memory footprint.
+### 2. File/IO Parsing Churn
+* **File:** `database.py`
+* **Issue:** `get_user()` and `get_transaction()` both open and parse the entirety of `db.json` on *every single invocation*.
+* **Expected Fix:** The agent should cache the parsed JSON payload into memory globally at module startup instead of parsing it per-call. Alternatively, it can memoize the results using `lru_cache`.
 
-### 3. Runtime Bottleneck: Expensive Standard Library Calls inside Loops
-* **File:** `analytics.py`
-* **Function:** `extract_dates()`
-* **Issue:** It uses `datetime.strptime()` within a loop. The overhead of safely parsing and instantiating `datetime` objects repeatedly in Python is notoriously high.
-* **Expected Optimization:** Because the timestamp is a strictly formatted, fixed-length ISO8601 string (`YYYY-MM-DDTHH:MM:SSZ`), date extraction can be dramatically accelerated by using standard string slicing (e.g., `r.timestamp[:10]`) instead of instantiating `datetime` objects.
+### 3. Algorithmic: Relational N+1 Query Execution
+* **File:** `server.py`
+* **Issue:** The API individually queries `database.get_transaction(tx_id)` inside a `for` loop over the user's transactions array. Paired with bottleneck #2, this yields an immense redundant workload (re-parsing the massive JSON file $N$ times per endpoint hit!).
+* **Expected Fix:** The agent should implement a bulk fetch strategy like `database.get_transactions(tx_ids_list)`, looping internally on the DB side without re-opening the payload, or natively yielding a merged structure.
 
-### 4. Runtime / Algorithmic Bottleneck: Repeated Window Operations $O(N \cdot K)$
-* **File:** `analytics.py`
-* **Function:** `moving_average()`
-* **Issue:** It calculates a slice sum `sum(temps[i:i+window])` on every iteration. This performs horribly since it throws away prior work and recalculates the entire window sum every single time.
-* **Expected Optimization:** It should maintain a running sum, simply adding the new element and subtracting the oldest element as the window shifts forward. This makes the loop $O(N)$ instead of $O(N \cdot K)$.
-
-### 5. I/O Bottleneck: Synchronous N+1 API Calls
-* **File:** `api_client.py`
-* **Function:** `get_locations_for_sensors()`
-* **Issue:** The function iterates over a list of sensor IDs and makes a synchronous, blocking "network" API call `time.sleep()` for each one. Because it executes sequentially, the program drops the ball while waiting on network latency—causing execution time to scale linearly with array length.
-* **Expected Optimization:** The agent should recognize that I/O-bound tasks inside a loop can be aggressively parallelized. It should replace the sequential loop with concurrency (e.g., using `concurrent.futures.ThreadPoolExecutor` or refactoring to `asyncio.gather`), overlapping the latency periods and significantly crushing the runtime.
+### 4. Memory: Unbounded Global Cache Leaking
+* **File:** `server.py`
+* **Issue:** The `analytics_data` global dictionary indiscriminately inserts request traces using a highly unique key `f"{request.url}_{time.time()}"`. Since this structure is completely unbounded and never cleaned up, continuous HTTP traffic will permanently inflate the worker process's RAM.
+* **Expected Fix:** The agent should recognize the unbound dictionary expansion and suggest an active cap: either using standard `functools.lru_cache`, `cachetools`, an explicitly maxed queue size, or shifting the analytics off-memory entirely.
