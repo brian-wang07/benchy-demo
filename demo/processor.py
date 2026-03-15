@@ -1,7 +1,6 @@
 def enrich_transactions(transactions, users):
     """
     Combines transaction data with user data.
-    Intentional bottleneck: O(N * M) nested loop for lookups.
     """
     enriched = []
     for txn in transactions:
@@ -22,7 +21,6 @@ def enrich_transactions(transactions, users):
 def generate_report(enriched_transactions):
     """
     Generates a textual report of all enriched transactions.
-    Intentional bottleneck: Inefficient string concatenation in a loop.
     """
     report = "--- TRANSACTION REPORT ---\n"
     
