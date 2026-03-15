@@ -1,16 +1,15 @@
 def enrich_transactions(transactions, users):
     """
     Combines transaction data with user data.
-    Intentional bottleneck: O(N * M) nested loop for lookups.
+    Optimized: Uses a dictionary for O(1) user lookups.
     """
+    # Pre-index users by ID for O(1) lookups
+    user_map = {user['id']: user for user in users}
+    
     enriched = []
     for txn in transactions:
-        user_info = None
-        # Runtime bottleneck: Iterating through the entire users list for every transaction
-        for user in users:
-            if user['id'] == txn['user_id']:
-                user_info = user
-                break
+        # Dictionary lookup is significantly faster than linear search
+        user_info = user_map.get(txn['user_id'])
         
         # Merge dictionaries
         enriched_txn = txn.copy()
