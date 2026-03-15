@@ -5,7 +5,7 @@ def load_transactions(filepath):
     Loads transactions from a JSON file.
     Intentional bottleneck: Reads the entire file into a giant string first.
     """
-    with open(filepath, 'r') as f:
+    with open(filepath, 'rb') as f:
         data = json.load(f)
     return data
 
@@ -15,5 +15,5 @@ def load_users(filepath):
     Intentional bottleneck: Uses readlines() which loads all lines into memory.
     """
     with open(filepath, 'r') as f:
-        users = [json.loads(line) for line in f]
+        users = list(map(json.loads, f))
     return users
