@@ -14,25 +14,20 @@ async def user_dashboard(user_id: str, request: Request):
     Endpoint mapping a user's dashboard.
     """
     
-    # Bottleneck #1: Blocking the Async Event Loop
-    # Simulated synchronous work (e.g., synchronous auth check or heavy CPU computation).
-    # Because this route is `async def`, `time.sleep` blocks the single event loop thread,
-    # hanging all other concurrent requests. Concurrency scaling is zeroed out.
-    time.sleep(0.2) 
+    # Fix Bottleneck #1: Use non-blocking sleep to keep the event loop free
+    await asyncio.sleep(0.2) 
     
-    user = database.get_user(user_id)
+    # Offload synchronous DB call to a thread pool to avoid blocking the loop
+    user = await run_in_threadpool(database.get_user, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
         
-    enriched_txs = []
-    
-    # Bottleneck #3: N+1 Query Anti-Pattern
-    # Loops and makes separate DB calls per transaction. 
-    # Combined with the file churn in database.py, this is a massive performance floor.
-    for tx_id in user["transactions"]:
-        tx_data = database.get_transaction(tx_id)
-        if tx_data:
-            enriched_txs.append(tx_data)
+    # Fix Bottleneck #3: Solve N+1 Query by parallelizing sync DB calls
+    # This fetches all transactions concurrently instead of one-by-one
+    tx_ids = user.get("transactions", [])
+    tasks = [run_in_threadpool(database.get_transaction, tx_id) for tx_id in tx_ids]
+    results = await asyncio.gather(*tasks)
+    enriched_txs = [tx for tx in results if tx]
             
     response = {
         "user_info": user["name"],
@@ -40,10 +35,12 @@ async def user_dashboard(user_id: str, request: Request):
         "transactions": enriched_txs
     }
     
-    # Bottleneck #4: Memory Leak
-    # request.url captures unique query strings or paths, making the dictionary grow forever
-    # while retaining historical data indefinitely.
+    # Fix Bottleneck #4: Prevent Memory Leak with a size-limited cache
     unique_request_id = f"{request.url}_{time.time()}"
+    if len(analytics_data) > 10000:
+        # Remove oldest entry to maintain fixed memory footprint
+        analytics_data.pop(next(iter(analytics_data)))
+        
     analytics_data[unique_request_id] = {
         "user_id": user_id,
         "tx_count": len(enriched_txs)

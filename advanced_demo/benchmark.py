@@ -3,15 +3,14 @@ import aiohttp
 import time
 
 async def fetch(session, user_id):
-    start = time.time()
+    start = time.perf_counter()
     url = f"http://127.0.0.1:8000/user/{user_id}/dashboard"
     try:
         async with session.get(url) as response:
-            await response.json()
-            return time.time() - start
+            await response.read()
     except Exception as e:
         print(f"Error fetching {url}: {e}")
-        return time.time() - start
+    return time.perf_counter() - start
 
 async def main():
     print("Starting server benchmark with 20 concurrent requests...")
