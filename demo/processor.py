@@ -2,21 +2,11 @@ def enrich_transactions(transactions, users):
     """
     Combines transaction data with user data.
     """
-    enriched = []
-    for txn in transactions:
-        user_info = None
-        # Runtime bottleneck: Iterating through the entire users list for every transaction
-        for user in users:
-            if user['id'] == txn['user_id']:
-                user_info = user
-                break
-        
-        # Merge dictionaries
-        enriched_txn = txn.copy()
-        enriched_txn['user'] = user_info
-        enriched.append(enriched_txn)
-        
-    return enriched
+    # O(U) pre-indexing: use reversed to ensure first-hit parity for duplicate IDs
+    user_lookup = {u['id']: u for u in reversed(users)}
+    
+    # O(T) processing via list comprehension and dict merging
+    return [{**txn, 'user': user_lookup.get(txn['user_id'])} for txn in transactions]
 
 def generate_report(enriched_transactions):
     """
