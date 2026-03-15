@@ -2,14 +2,13 @@ def enrich_transactions(transactions, users):
     """
     Combines transaction data with user data.
     """
+    # Index users by ID for O(1) lookup
+    user_map = {user['id']: user for user in users}
+    
     enriched = []
     for txn in transactions:
-        user_info = None
-        # Runtime bottleneck: Iterating through the entire users list for every transaction
-        for user in users:
-            if user['id'] == txn['user_id']:
-                user_info = user
-                break
+        # Dictionary lookup is O(1)
+        user_info = user_map.get(txn['user_id'])
         
         # Merge dictionaries
         enriched_txn = txn.copy()
