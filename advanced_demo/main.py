@@ -32,13 +32,15 @@ def main():
     active = measure_performance(filter_active_sensors, readings)
     print(f"Filtered {len(active)} active readings.")
     
-    dates = measure_performance(extract_dates, active[:50000]) # Run on subset to save time
+    active_subset = active[:50000]
+    dates = measure_performance(extract_dates, active_subset) # Run on subset to save time
     print(f"Extracted dates for {len(dates)} readings.")
     
-    averages = measure_performance(moving_average, active[:50000], window=200)
+    averages = measure_performance(moving_average, active_subset, window=200)
     
     # Run API test on a small unique subset to avoid hanging the benchmark
-    unique_sensors = list({r.sensor_id for r in active[:5000]})
+    from itertools import islice
+    unique_sensors = list({r.sensor_id for r in islice(active, 5000)})
     locations = measure_performance(get_locations_for_sensors, unique_sensors[:200])
     print(f"Fetched locations for {len(locations)} sensors.")
     print(f"Calculated {len(averages)} moving averages.")
