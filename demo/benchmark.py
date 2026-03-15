@@ -7,7 +7,7 @@ async def fetch(session, user_id):
     url = f"http://127.0.0.1:8000/user/{user_id}/dashboard"
     try:
         async with session.get(url) as response:
-            await response.json()
+            await response.read()
             return time.time() - start
     except Exception as e:
         print(f"Error fetching {url}: {e}")
