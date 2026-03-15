@@ -39,7 +39,17 @@ def main():
     
     # Run API test on a small unique subset to avoid hanging the benchmark
     unique_sensors = list({r.sensor_id for r in active[:5000]})
-    locations = measure_performance(get_locations_for_sensors, unique_sensors[:200])
+    
+    def fetch_locations_concurrently(sensors):
+        import concurrent.futures
+        # Maximize concurrency by using a thread per sensor (ideal for completely IO-bound wait times)
+        max_workers = len(sensors) if sensors else 1
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # Process sensors concurrently by passing chunks of 1 to the API function
+            results = executor.map(lambda s: get_locations_for_sensors([s]), sensors)
+            return [loc for res in results for loc in res]
+
+    locations = measure_performance(fetch_locations_concurrently, unique_sensors[:200])
     print(f"Fetched locations for {len(locations)} sensors.")
     print(f"Calculated {len(averages)} moving averages.")
 
