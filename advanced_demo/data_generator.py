@@ -1,33 +1,40 @@
-import json
+import csv
 import random
-import os
+from datetime import datetime, timedelta
 
-def generate_db(filename="db.json"):
-    print("Generating mock database. This might take a second...")
-    data = {
-        "users": {},
-        "transactions": {}
-    }
-    # 2000 users, 20 transactions each
-    for i in range(2000):
-        tx_ids = [f"tx_{i}_{j}" for j in range(20)]
-        data["users"][f"user_{i}"] = {
-            "name": f"User {i}", 
-            "email": f"user{i}@example.com",
-            "transactions": tx_ids
-        }
-        for tx_id in tx_ids:
-             data["transactions"][tx_id] = {
-                 "id": tx_id,
-                 "amount": round(random.uniform(10, 500), 2), 
-                 "status": "completed"
-             }
-             
-    with open(filename, "w") as f:
-        json.dump(data, f)
+def generate_csv(filename: str, num_rows: int = 500000):
+    start_time = datetime(2026, 1, 1)
+    statuses = ["active", "inactive", "error"]
+    # Pre-cache sensor names to avoid 500,000 f-string evaluations
+    sensor_ids = [f"sensor_{i}" for i in range(1, 1001)]
+    delta = timedelta(minutes=1)
     
-    file_size_mb = os.path.getsize(filename) / 1024 / 1024
-    print(f"Generated {filename} with size: {file_size_mb:.2f} MB")
+    # Local lookups for performance
+    choice = random.choice
+    uniform = random.uniform
+    round_val = round
+
+    def data_generator():
+        curr_dt = start_time
+        for _ in range(num_rows):
+            # isoformat(timespec='seconds') + 'Z' is significantly faster than strftime
+            # It produces the exact same format: YYYY-MM-DDTHH:MM:SSZ
+            ts = curr_dt.isoformat(timespec='seconds') + 'Z'
+            yield [
+                ts,
+                choice(sensor_ids),
+                round_val(uniform(-20.0, 50.0), 2),
+                choice(statuses)
+            ]
+            curr_dt += delta
+
+    with open(filename, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["timestamp", "sensor_id", "temperature", "status"])
+        # Use writerows with a generator for efficient batch writing
+        writer.writerows(data_generator())
 
 if __name__ == "__main__":
-    generate_db()
+    print("Generating 500k rows of sensor data...")
+    generate_csv("sensor_data.csv")
+    print("Data generation complete.")
