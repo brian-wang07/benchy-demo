@@ -30,16 +30,30 @@ def main():
     print(f"Parsed {len(readings)} readings.")
     
     active = measure_performance(filter_active_sensors, readings)
+    # Clear reference to large original list to reduce peak memory footprint
+    readings = None 
     print(f"Filtered {len(active)} active readings.")
     
-    dates = measure_performance(extract_dates, active[:50000]) # Run on subset to save time
+    # Cache the subset to avoid repeated slicing/copying
+    active_subset = active[:50000]
+    
+    dates = measure_performance(extract_dates, active_subset)
     print(f"Extracted dates for {len(dates)} readings.")
     
-    averages = measure_performance(moving_average, active[:50000], window=200)
+    averages = measure_performance(moving_average, active_subset, window=200)
     
-    # Run API test on a small unique subset to avoid hanging the benchmark
-    unique_sensors = list({r.sensor_id for r in active[:5000]})
-    locations = measure_performance(get_locations_for_sensors, unique_sensors[:200])
+    # Optimization: Find up to 200 unique IDs with early exit instead of processing all 5000
+    unique_sensors = []
+    seen = set()
+    for r in active_subset[:5000]:
+        sid = r.sensor_id
+        if sid not in seen:
+            seen.add(sid)
+            unique_sensors.append(sid)
+            if len(unique_sensors) == 200:
+                break
+
+    locations = measure_performance(get_locations_for_sensors, unique_sensors)
     print(f"Fetched locations for {len(locations)} sensors.")
     print(f"Calculated {len(averages)} moving averages.")
 
