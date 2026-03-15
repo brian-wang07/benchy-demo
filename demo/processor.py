@@ -3,14 +3,18 @@ def enrich_transactions(transactions, users):
     Combines transaction data with user data.
     Intentional bottleneck: O(N * M) nested loop for lookups.
     """
+    # Create a lookup map for users by ID: O(M)
+    # We use a loop to ensure we keep the FIRST match found, mimicking the original 'break' logic
+    user_map = {}
+    for user in users:
+        user_id = user['id']
+        if user_id not in user_map:
+            user_map[user_id] = user
+
     enriched = []
     for txn in transactions:
-        user_info = None
-        # Runtime bottleneck: Iterating through the entire users list for every transaction
-        for user in users:
-            if user['id'] == txn['user_id']:
-                user_info = user
-                break
+        # Dictionary lookup is O(1) on average
+        user_info = user_map.get(txn['user_id'])
         
         # Merge dictionaries
         enriched_txn = txn.copy()
@@ -24,13 +28,12 @@ def generate_report(enriched_transactions):
     Generates a textual report of all enriched transactions.
     Intentional bottleneck: Inefficient string concatenation in a loop.
     """
-    report = "--- TRANSACTION REPORT ---\n"
+    # Use a list to collect string fragments for O(N) efficiency
+    report_fragments = ["--- TRANSACTION REPORT ---\n"]
     
     for txn in enriched_transactions:
-        # Runtime/Memory bottleneck: String immutability causes a new string 
-        # allocation and copy on each iteration
         user_name = txn['user']['name'] if txn['user'] else "Unknown"
-        report += f"Transaction ID: {txn['id']} | User: {user_name} | Amount: ${txn['amount']}\n"
+        report_fragments.append(f"Transaction ID: {txn['id']} | User: {user_name} | Amount: ${txn['amount']}\n")
         
-    report += "--- END OF REPORT ---\n"
-    return report
+    report_fragments.append("--- END OF REPORT ---\n")
+    return "".join(report_fragments)
