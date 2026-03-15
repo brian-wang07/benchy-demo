@@ -5,18 +5,27 @@ from datetime import datetime, timedelta
 def generate_csv(filename: str, num_rows: int = 500000):
     start_time = datetime(2026, 1, 1)
     statuses = ["active", "inactive", "error"]
+    sensor_ids = [f"sensor_{i}" for i in range(1, 1001)]
     
     with open(filename, 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(["timestamp", "sensor_id", "temperature", "status"])
-        for i in range(num_rows):
-            dt = start_time + timedelta(minutes=i)
-            # Fixed ISO8601 format
-            ts = dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-            sensor_id = f"sensor_{random.randint(1, 1000)}"
-            temp = round(random.uniform(-20.0, 50.0), 2)
-            status = random.choice(statuses)
-            writer.writerow([ts, sensor_id, temp, status])
+        
+        chunk_size = 10000
+        choice = random.choice
+        uniform = random.uniform
+        
+        dt = start_time
+        delta = timedelta(minutes=1)
+        
+        for chunk_start in range(0, num_rows, chunk_size):
+            chunk_end = min(chunk_start + chunk_size, num_rows)
+            rows = []
+            for _ in range(chunk_end - chunk_start):
+                ts = dt.isoformat(timespec='seconds') + "Z"
+                rows.append([ts, choice(sensor_ids), round(uniform(-20.0, 50.0), 2), choice(statuses)])
+                dt += delta
+            writer.writerows(rows)
 
 if __name__ == "__main__":
     print("Generating 500k rows of sensor data...")
