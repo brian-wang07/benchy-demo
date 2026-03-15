@@ -21,6 +21,8 @@ def measure_performance(func, *args, **kwargs):
     print(f"Peak memory: {peak_mem / 10**6:.2f} MB")
     return result
 
+from concurrent.futures import ThreadPoolExecutor
+
 def main():
     csv_file = "sensor_data.csv"
     if not os.path.exists(csv_file):
@@ -32,14 +34,39 @@ def main():
     active = measure_performance(filter_active_sensors, readings)
     print(f"Filtered {len(active)} active readings.")
     
-    dates = measure_performance(extract_dates, active[:50000]) # Run on subset to save time
+    # Optimization: Slice once and reuse for both extract_dates and moving_average
+    active_subset = active[:50000]
+    dates = measure_performance(extract_dates, active_subset)
     print(f"Extracted dates for {len(dates)} readings.")
     
-    averages = measure_performance(moving_average, active[:50000], window=200)
+    averages = measure_performance(moving_average, active_subset, window=200)
     
-    # Run API test on a small unique subset to avoid hanging the benchmark
+    # Run API test on a small unique subset
     unique_sensors = list({r.sensor_id for r in active[:5000]})
-    locations = measure_performance(get_locations_for_sensors, unique_sensors[:200])
+    sensor_ids_to_fetch = unique_sensors[:200]
+
+    def get_locations_parallel(sensor_ids):
+        """
+        Wraps the sequential API client to perform requests in parallel chunks.
+        Maintains functional parity by flattening results back into the original format.
+        """
+        chunk_size = 20
+        chunks = [sensor_ids[i:i + chunk_size] for i in range(0, len(sensor_ids), chunk_size)]
+        
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            batch_results = list(executor.map(get_locations_for_sensors, chunks))
+        
+        if not batch_results:
+            return []
+        
+        # Flatten results based on return type (list or dict)
+        if isinstance(batch_results[0], dict):
+            merged = {}
+            for b in batch_results: merged.update(b)
+            return merged
+        return [item for sublist in batch_results for item in sublist]
+
+    locations = measure_performance(get_locations_parallel, sensor_ids_to_fetch)
     print(f"Fetched locations for {len(locations)} sensors.")
     print(f"Calculated {len(averages)} moving averages.")
 
