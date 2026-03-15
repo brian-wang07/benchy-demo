@@ -13,9 +13,20 @@ def get_locations_for_sensors(sensor_ids):
     I/O Bottleneck: Synchronous N+1 API calls.
     Iterates sequentially, waiting for each network call to finish before starting the next.
     """
+    import concurrent.futures
+    
+    # Deduplicate while preserving the original insertion order
+    unique_sids = list(dict.fromkeys(sensor_ids))
     locations = {}
-    for sid in sensor_ids:
-        # Blocking fake-network call inside a loop
-        locations[sid] = fetch_sensor_location_sync(sid)
+    
+    if not unique_sids:
+        return locations
         
+    # Use ThreadPoolExecutor to perform the I/O calls concurrently
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(100, len(unique_sids))) as executor:
+        # executor.map guarantees the results are returned in the exact order of unique_sids
+        results = executor.map(fetch_sensor_location_sync, unique_sids)
+        for sid, result in zip(unique_sids, results):
+            locations[sid] = result
+            
     return locations
