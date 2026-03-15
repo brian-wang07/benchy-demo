@@ -37,8 +37,9 @@ def main():
     
     averages = measure_performance(moving_average, active[:50000], window=200)
     
+    import itertools
     # Run API test on a small unique subset to avoid hanging the benchmark
-    unique_sensors = list({r.sensor_id for r in active[:5000]})
+    unique_sensors = list({r.sensor_id for r in itertools.islice(active, 5000)})
     locations = measure_performance(get_locations_for_sensors, unique_sensors[:200])
     print(f"Fetched locations for {len(locations)} sensors.")
     print(f"Calculated {len(averages)} moving averages.")
