@@ -8,11 +8,21 @@ def main():
     start_time = time.time()
     
     print("Loading users and transactions concurrently...")
-    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
-        future_users = executor.submit(load_users, "users.jsonl")
-        future_txs = executor.submit(load_transactions, "transactions.json")
-        users = future_users.result()
-        txs = future_txs.result()
+    # Using ProcessPoolExecutor for CPU-bound parsing tasks to bypass the GIL.
+    # By using as_completed, we can start retrieving results as soon as any worker finishes.
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        futures = {
+            executor.submit(load_users, "users.jsonl"): "users",
+            executor.submit(load_transactions, "transactions.json"): "txs"
+        }
+        
+        results = {}
+        for future in concurrent.futures.as_completed(futures):
+            name = futures[future]
+            results[name] = future.result()
+            
+    users = results["users"]
+    txs = results["txs"]
     
     print(f"Enriching {len(txs)} transactions with {len(users)} users...")
     enriched = enrich_transactions(txs, users)
