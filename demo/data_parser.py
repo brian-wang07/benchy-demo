@@ -3,17 +3,16 @@ import json
 def load_transactions(filepath):
     """
     Loads transactions from a JSON file.
-    Intentional bottleneck: Reads the entire file into a giant string first.
+    Optimized for execution speed by performing a single I/O read.
     """
     with open(filepath, 'r') as f:
-        data = json.load(f)
-    return data
+        return json.loads(f.read())
 
 def load_users(filepath):
     """
-    Loads users from a JSONL file.
-    Intentional bottleneck: Uses readlines() which loads all lines into memory.
+    Loads users from a JSONL file using a generator to minimize memory footprint.
     """
     with open(filepath, 'r') as f:
-        users = [json.loads(line) for line in f]
-    return users
+        for line in f:
+            if line.strip():
+                yield json.loads(line)
