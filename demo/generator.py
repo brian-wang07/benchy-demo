@@ -26,7 +26,7 @@ def generate_mock_data(num_users=1000, num_transactions=5000):
     ]
     
     with open("transactions.json", "w") as f:
-        json.dump(transactions, f, indent=2)
+        json.dump(transactions, f)
 
 if __name__ == "__main__":
     print("Generating mock data...")
