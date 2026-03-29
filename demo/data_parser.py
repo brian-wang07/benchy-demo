@@ -15,5 +15,5 @@ def load_users(filepath):
     Intentional bottleneck: Uses readlines() which loads all lines into memory.
     """
     with open(filepath, 'r') as f:
-        users = [json.loads(line) for line in f]
+        users = list(map(json.loads, f))
     return users
